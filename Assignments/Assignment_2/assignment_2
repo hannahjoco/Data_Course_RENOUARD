@@ -1,0 +1,19 @@
+1. csv_files <- list.files("Data", pattern="\\.csv$", full.names=TRUE, recursive=TRUE)
+
+2. length(csv_files)
+
+3. df <- read.csv("Data/wingspan_vs_mass.csv")
+
+4. head(df)
+
+5. b_files <- list.files("Data", pattern="^b", recursive=TRUE, full.names=TRUE)
+
+6. for (f in b_files) {
+       cat("File:", f, "\n")
+       cat(readLines(f, n=1), "\n\n")
+   }
+
+7. for (f in csv_files) {
+       cat("File:", f, "\n")
+       cat(readLines(f, n=1), "\n\n")
+   }
