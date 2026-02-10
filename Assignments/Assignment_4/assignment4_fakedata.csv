@@ -1,0 +1,13 @@
+﻿sample_id,site_type,shannon,observed_asvs,reads_retained
+MbCL-01,Laguna_de_Choclococha,6.4,320,25000
+MbCL-02,Laguna_de_Choclococha,6.1,295,23000
+MbCL-03,Laguna_de_Choclococha,6.7,340,26000
+MbOC-01,Laguna_de_Orccococha,6.3,310,24000
+MbOC-02,Laguna_de_Orccococha,5.8,270,21000
+MbOC-03,Laguna_de_Orccococha,5.6,260,20000
+MbPC-01,Laguna_de_Pultocc,5.9,280,21500
+MbPC-02,Laguna_de_Pultocc,5.5,300,20000
+MbPC-03,Laguna_de_Pultocc,5.7,260,21500
+MbLC-01,Piscigranja_de_Lachocc,3.2,280,18000
+MbLC-02,Piscigranja_de_Lachocc,3.1,120,17500
+MbLC-03,Piscigranja_de_Lachocc,3.5,110,16000
