@@ -1,0 +1,11 @@
+1.  The predicted response values appear reasonable because they fell within the range of real observed data, but the model might have produced an unrealistic value if extrapolated beyond the observed data range.
+
+2. Many of my plots were not well-suited to the linear model due to discrete data categories. Many factors only had two options (high vs low, 20 vs 25) and so there was no data between those points. Numbers for humidity and more numbers for the other growth factors would have been better. To handle non-linear relationships in R, you can use polynomial regression or transformations of variables. https://www.geeksforgeeks.org/r-language/non-linear-regression-in-r/
+
+3.
+
+df <- read_csv(“Data/non_linear_relationships.csv”)
+
+lm(Y ~ poly(X, 2), data = df
+
+#quadratic model to account for curved relationships but still use linear functions
