@@ -1,0 +1,135 @@
+---
+title: "Exam 3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(broom)
+```
+
+## Task 1: Faculty Salaries Plot
+
+Let's look at the data structure before tidying.
+
+```{r}
+faculty_raw <- read.csv("FacultySalaries_1995.csv", header = FALSE, stringsAsFactors = FALSE)
+faculty_raw
+```
+Oh yikes
+```{r}
+# Use the first row as column names
+colnames(faculty_raw) <- faculty_raw[1, ]
+
+# Remove first row from the data
+faculty <- faculty_raw[-1, ]
+
+# Take a look
+head(faculty)
+```
+
+```{r}
+names(faculty)
+str(faculty)
+```
+Better!
+```{r}
+faculty_tidy <- faculty %>%
+  select(State, Tier, AvgAssistProfSalary, AvgAssocProfSalary, AvgFullProfSalary) %>%
+  pivot_longer(
+    cols = c(AvgAssistProfSalary, AvgAssocProfSalary, AvgFullProfSalary),
+    names_to = "Rank",
+    values_to = "Salary"
+  ) %>%
+  mutate(
+    Salary = as.numeric(Salary),
+    Rank = recode(Rank,
+                  AvgAssistProfSalary = "Assist",
+                  AvgAssocProfSalary = "Assoc",
+                  AvgFullProfSalary = "Full"),
+    Rank = factor(Rank, levels = c("Assist", "Assoc", "Full")),
+    Tier = factor(Tier, levels = c("I", "IIA", "IIB"))
+  )
+
+head(faculty_tidy)
+str(faculty_tidy)
+```
+```{r}
+faculty_tidy <- faculty_tidy %>%
+  filter(!is.na(Tier))
+```
+This got rid of the NA
+
+
+```{r}
+ggplot(faculty_tidy, aes(x = Rank, y = Salary, fill = Rank)) +
+  geom_boxplot() +
+  facet_wrap(~ Tier) +
+  labs(
+    x = "Rank",
+    y = "Salary",
+    fill = "Rank"
+  ) +
+  theme_minimal()
+```
+
+## Task 2: ANOVA
+
+```{r}
+anova_model <- aov(Salary ~ State + Tier + Rank, data = faculty_tidy)
+
+summary(anova_model)
+```
+State, Tier, and Rank all significantly affect salary (p < 0.001), indicating that salary varies across locations, institution types, and academic ranks.
+
+## Task 3: Tidy Juniper Oils Data
+
+```{r}
+juniper <- read.csv("Juniper_Oils.csv")
+
+head(juniper)
+str(juniper)
+```
+```{r}
+juniper_tidy <- juniper %>%
+  select(YearsSinceBurn, contains(".")) %>%
+  pivot_longer(
+    cols = -YearsSinceBurn,
+    names_to = "ChemicalID",
+    values_to = "Concentration"
+  )
+
+head(juniper_tidy)
+str(juniper_tidy)
+```
+## Task 4: Juniper Graph
+
+```{r}
+ggplot(juniper_tidy, aes(x = YearsSinceBurn, y = Concentration)) +
+  geom_smooth(se = TRUE) +
+  facet_wrap(~ ChemicalID, scales = "free_y") +
+  labs(
+    x = "YearsSinceBurn",
+    y = "Concentration"
+  ) +
+  theme_minimal()
+```
+
+## Task 5: Linear Model
+
+```{r}
+model_results <- juniper_tidy %>%
+  group_by(ChemicalID) %>%
+  do(tidy(lm(Concentration ~ YearsSinceBurn, data = .))) %>%
+  ungroup()
+```
+
+```{r}
+significant_chemicals <- model_results %>%
+  filter(term == "YearsSinceBurn", p.value < 0.05)
+
+significant_chemicals
+```
+
+### ta daaaa
