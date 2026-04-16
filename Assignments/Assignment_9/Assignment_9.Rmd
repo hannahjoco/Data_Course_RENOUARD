@@ -1,44 +1,99 @@
 ---
-output: 
-html_document:
-  number_sections=TRUE
-pagetitle: Assignment_9
+title: "Assignment 9"
+output: html_document
 ---
 
-
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-# **Assignment 9**
+### Grad school admissions based on GPA, GRE, and institution rank
 
-In this assignment, you will use R (within R-Studio) to:
-  
-+ Load and clean a real data set
-+ Conduct exploratory analyses, including informative figures
-+ Build and test appropriate models
-+ Draw conclusions about your data
-+ Combine all of the above into a well-documented R-Markdown report and export (knit) it into an HTML file
+I will examine the `GradSchool_Admissions.csv` dataset to determine whether GPA, GRE score, and undergraduate institution rank predict graduate school admission.
 
-**All file paths should be relative, starting from *your* Assignment_9 directory!!**
+Setup:
 
-**This means that you need to create a new R-Project named "Assignment_9.Rproj" in your Assignment_9 directory, and work from scripts within that.**
+```{r message=FALSE,warning=FALSE}
+library(tidyverse)
+```
+
+Let's have a look how the data is structured:
+
+```{r message=FALSE, warning=FALSE, fig.align='center'}
+admissions <- read.csv("GradSchool_Admissions.csv")
+admissions$rank <- factor(admissions$rank)
+
+str(admissions)
+summary(admissions)
+```
+
+The dataset contains 400 observations and 4 variables: admission outcome, GRE score, GPA, and undergraduate institution rank. Because `admit` is binary, I will use a logistic regression model.
+
+Next, I will explore how admission varies with undergraduate institution rank.
+
+```{r}
+ggplot(admissions, aes(x = rank, fill = factor(admit))) +
+  geom_bar(position = "fill") +
+  labs(x = "Undergraduate institution rank",
+       y = "Proportion",
+       fill = "Admit")
+```
+This plot suggests that students from higher-ranked institutions have a higher proportion of admission compared to those from lower-ranked institutions.
+
+I will also compare GRE score distributions between admitted and non-admitted students.
+
+```{r}
+ggplot(admissions, aes(x = gre, fill = factor(admit))) +
+  geom_density(alpha = 0.4) +
+  labs(x = "GRE score",
+       fill = "Admit")
+```
+
+This plot suggests that admitted students tend to have higher GRE scores than students who weren't admitted.
+
+Now I will compare GPA distributions between admitted and non-admitted students.
+
+```{r}
+ggplot(admissions, aes(x = gpa, fill = factor(admit))) +
+  geom_density(alpha = 0.4) +
+  labs(x = "GPA",
+       fill = "Admit")
+```
+
+This plot suggests that admitted students tend to have higher GPAs than non-admitted students.
+
+Based on these exploratory plots, GRE score, GPA, and undergraduate institution rank all appear to influence admission, so I will fit several logistic regression models.
+
+```{r}
+mod_gpa <- glm(admit ~ gpa, data = admissions, family = binomial)
+mod_gre_gpa <- glm(admit ~ gre + gpa, data = admissions, family = binomial)
+model_full <- glm(admit ~ gre + gpa + rank, data = admissions, family = binomial)
+```
+
+I will compare these models using AIC, where lower values indicate a better balance of model fit and complexity.
+
+```{r}
+AIC(mod_gpa, mod_gre_gpa, model_full)
+```
+
+The full model had the lowest AIC value, indicating that including GRE score, GPA, and undergraduate institution rank provides the best fit among the models considered.
+
+Now I will examine the full model in more detail.
+
+```{r}
+summary(model_full)
+```
+
+The full model showed that GRE score and GPA were both significant positive predictors of admission. This indicates that students with higher GRE scores and higher GPAs had greater odds of being admitted.
+
+Undergraduate institution rank was also an important predictor. Compared with students from rank 1 institutions, students from ranks 2, 3, and 4 had lower odds of admission. The negative coefficients for these levels indicate that lower-ranked institutions were associated with reduced admission odds.
+
+Overall, the results suggest that both academic performance and undergraduate institution rank contribute meaningfully to graduate school admission outcomes.
+
+### Conclusion
+
+This analysis used logistic regression to model graduate school admission based on GRE score, GPA, and undergraduate institution rank. The results indicate that higher GRE scores, higher GPAs, and attending a higher-ranked undergraduate institution are all associated with a greater likelihood of admission.
 
 
-## **For credit...**
 
-1.  Push a completed version of your Rproj and R-markdown file (details at end of this assignment) to GitHub
-2.  Your score will also depend on your analyses and presentation of your final report
-
-____________
-
-# Your tasks:
-
-+ Use the data set "/Data/GradSchool_Admissions.csv"
-+ You will explore and model the predictors of graduate school admission
-  - the "admit" column is coded as 1=success and 0=failure (that's binary, so model appropriately)
-  - the other columns are the GRE score, the GPA, and the rank of the undergraduate institution, where I is "top-tier."
-+ Document your data explorations, figures, and conclusions in a reproducible R-markdown report
-+ That means I want to see, in your html report, your process of model evaluation and selection. Here's an [example](https://gzahn.github.io/data-course/Repository/Assignments/Assignment_9/example.html){target="_blank"}
-+ Upload your **self-contained** R project, including knitted HTML report, to GitHub in *your* Assignment_9 directory
 
