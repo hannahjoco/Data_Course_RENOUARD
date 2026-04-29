@@ -1,0 +1,177 @@
+---
+title: "Evaluating AquaTest as a Lower-Cost Alternative to mTEC for Water Quality Testing"
+output:
+  html_document:
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+
+aquatest <- read.csv("AquaTestComparison_Final(Full).csv")
+
+aquatest_clean <- aquatest %>%
+  mutate(
+    Aqua_numeric = as.numeric(AquaTest.Result),
+    mTEC_numeric = as.numeric(mTEC.Results)
+  )
+
+both_numeric <- aquatest_clean %>%
+  filter(!is.na(Aqua_numeric) & !is.na(mTEC_numeric))
+
+```
+
+## Background
+*E. coli* is commonly used as an indicator of fecal contamination in water. Selective media must be used to prevent the growth of other microorganisms. Modified mTEC agar is a standard method (EPA Method 1603), but is very costly (roughly $200 for 500g, depending on the supplier) and therefore limits how many samples can be tested on a low budget. This hinders research in Peru, where water quality has a direct impact on local residents, but funding for testing is scarce or not prioritized. AquaTest offers a potentially simpler, lower-cost alternative. This project evaluates whether AquaTest produces comparable results.
+
+## About the Dataset
+
+This dataset contains 93 observations comparing AquaTest and mTEC results from water samples collected by Dr. Lauren Brooks from various locations in Peru, where fecal contamination is a concern for local residents who use these water sources. Water samples were plated shortly after collection, incubated, and enumerated. Each row in the dataset includes a sample ID, replicate information, dilution, AquaTest counts, and mTEC counts.
+
+The result columns include both numeric colony counts and non-numeric outcomes such as `THTC` (too high to count), `Invalid`, and `Inconclusive`. For the quantitative comparison, only rows where both methods produced numeric results were used. This left 48 paired observations for direct comparison.
+
+```{r dataset-summary, echo=FALSE}
+summary_table <- tibble(
+  Description = c(
+    "Total observations",
+    "Total variables",
+    "Rows with numeric results for both methods",
+    "Unique sample IDs"
+  ),
+  Value = c(
+    nrow(aquatest_clean),
+    ncol(aquatest),
+    nrow(both_numeric),
+    n_distinct(aquatest_clean$Sample.ID)
+  )
+)
+
+knitr::kable(summary_table)
+```
+
+## Analysis and Results
+
+To evaluate whether AquaTest produces results comparable to mTEC, both quantitative and categorical comparisons were performed. Numeric colony counts were analyzed using correlation and linear modeling, while non-numeric outcomes (e.g., THTC, invalid, inconclusive) were compared to assess differences in result types between methods.
+
+To compare numeric results between methods, AquaTest counts were plotted against mTEC counts for samples where both produced numeric values.
+
+```{r scatterplot, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(both_numeric, aes(x = mTEC_numeric, y = Aqua_numeric)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Comparison of AquaTest and mTEC Results",
+    x = "mTEC Counts",
+    y = "AquaTest Counts"
+  ) +
+  theme_minimal()
+```
+
+The scatterplot suggests a general positive relationship between AquaTest and mTEC counts, although there is considerable variability.
+
+To verify this, the values for r and R² were calculated.
+
+```{r correlation, echo=TRUE}
+correlation <- cor(both_numeric$mTEC_numeric, both_numeric$Aqua_numeric)
+correlation
+```
+
+```{r model, echo=TRUE}
+model <- lm(Aqua_numeric ~ mTEC_numeric, data = both_numeric)
+r_squared <- summary(model)$r.squared
+r_squared
+```
+
+The relationship between AquaTest and mTEC results showed a moderate positive correlation (r = 0.62). A linear model indicated that approximately 38% of the variation in AquaTest results could be explained by mTEC counts (R² = 0.38), suggesting that while the methods are related, there is substantial variability between them.
+
+To assess agreement between AquaTest and mTEC measurements beyond correlation, a Bland-Altman analysis was performed.
+
+```{r bland_altman, echo=FALSE}
+both_numeric <- both_numeric %>%
+  mutate(
+    mean = (Aqua_numeric + mTEC_numeric)/2,
+    diff = Aqua_numeric - mTEC_numeric
+  )
+
+ggplot(both_numeric, aes(x = mean, y = diff)) +
+  geom_point() +
+  geom_hline(yintercept = mean(both_numeric$diff), color = "blue") +
+  geom_hline(yintercept = mean(both_numeric$diff) + 1.96*sd(both_numeric$diff), linetype = "dashed") +
+  geom_hline(yintercept = mean(both_numeric$diff) - 1.96*sd(both_numeric$diff), linetype = "dashed") +
+  labs(title = "Bland-Altman Plot: Agreement Between AquaTest and mTEC",
+       x = "Mean of Methods",
+       y = "Difference (AquaTest - mTEC)") +
+  theme_minimal()
+```
+
+The Bland–Altman analysis indicates that while the average difference between methods is small, the spread of differences increases at higher counts, suggesting reduced agreement between AquaTest and mTEC as bacterial concentrations rise.
+
+## Comparison of Result Types
+
+To evaluate differences in result types, counts of numeric and non-numeric outcomes were compared between AquaTest and mTEC.
+
+```{r result-types, echo=FALSE}
+result_types <- aquatest %>%
+  mutate(
+    Aqua_category = case_when(
+      AquaTest.Result == "THTC" ~ "THTC",
+      AquaTest.Result == "Invalid" ~ "Invalid",
+      AquaTest.Result == "Inconclusive" ~ "Inconclusive",
+      TRUE ~ "Numeric"
+    ),
+    mTEC_category = case_when(
+      mTEC.Results == "THTC" ~ "THTC",
+      TRUE ~ "Numeric"
+    )
+  )
+
+aqua_counts <- result_types %>%
+  count(Aqua_category)
+
+mtec_counts <- result_types %>%
+  count(mTEC_category)
+
+knitr::kable(aqua_counts, col.names = c("AquaTest", "n"))
+knitr::kable(mtec_counts, col.names = c("mTEC", "n"))
+```
+
+```{r category-plot, echo=FALSE}
+result_types_long <- result_types %>%
+  pivot_longer(
+    cols = c(Aqua_category, mTEC_category),
+    names_to = "Method",
+    values_to = "Category"
+  )
+
+result_types_long$Category <- factor(
+  result_types_long$Category,
+  levels = c("Numeric", "THTC", "Inconclusive", "Invalid")
+)
+
+ggplot(result_types_long, aes(x = Category, fill = Method)) +
+  geom_bar(position = "dodge") +
+  scale_fill_manual(
+    values = c("Aqua_category" = "salmon", "mTEC_category" = "steelblue"),
+    labels = c("Aqua_category" = "AquaTest", "mTEC_category" = "mTEC")
+  ) +
+  labs(
+    title = "Comparison of Result Types Between Methods",
+    x = "Result Category",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+The distribution of result types differed notably between media types. mTEC produced a higher number of numeric (countable) results, while AquaTest yielded more non-numeric outcomes, including THTC, inconclusive, and invalid results. This suggests that while AquaTest may detect contamination, it may provide less precise or less consistent quantification compared to mTEC.
+
+## Limitations
+
+There were a few limitations that prevent us from drawing definitive conclusions from these analyses. The original samples were plated in a non-sterile environment. Additionally, the size of the dataset was not large, particularly the amount of countable results.
+
+## Conclusion
+
+This project evaluated whether AquaTest could serve as a lower-cost alternative to mTEC for water quality testing. While AquaTest showed a moderate positive relationship with mTEC results, both the linear modeling and Bland–Altman analysis revealed substantial variability between methods. In particular, agreement between AquaTest and mTEC decreased at higher bacterial counts, suggesting that the methods are not directly interchangeable for quantitative measurements.
+
+Additionally, AquaTest produced a higher proportion of non-numeric results while mTEC more consistently yielded countable values. This indicates that although AquaTest may be useful for detecting the presence of fecal contamination via the presence of *E. coli*, it may lack the precision and consistency needed for reliable quantification.
+
+Overall, AquaTest may be a practical screening tool in low-resource settings, but mTEC remains the more reliable method for accurate measurement of bacterial contamination. As the results varied highly between media types, it is not currently feasible to consider AquaTest as a reliable alternative for mTEC if quantitative results are required.
